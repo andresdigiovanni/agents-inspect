@@ -1,320 +1,246 @@
 # Agents Inspect
 
-> **Know what your AI agents actually do.**
+### Understand your AI agents. Measure what matters.
 
-Agents Inspect is a local, read-only dashboard that turns AI coding-agent session logs into cost, usage, and workflow analytics.
+A local-first analytics dashboard for AI coding agents.
 
-Instead of guessing which skills earn their keep, which MCP servers slow you down, or where your budget goes, Agents Inspect lets you **measure sessions, analyze tooling, classify workflows, and drill into any session** — without touching your agent setup.
+Track costs, analyze skills and MCP servers, understand your workflow,
+and explore every session - all from the logs your agents already produce.
 
-Works with the logs **Claude Code** and **GitHub Copilot CLI** already write to your machine. No plugins, no instrumentation, no data leaving localhost.
+**No instrumentation · No database · No external services**
 
-## Why?
-
-AI agents are easy to run.
-
-But they are hard to **understand**.
-
-Questions like:
-
-```
-How much did I spend this month?
-    ↓
-Which skills actually help?
-    ↓
-Which MCP servers just burn context?
-    ↓
-How much time goes to debugging vs. shipping?
-```
-
-usually go unanswered, because the answers are buried in JSONL logs.
-
-Agents Inspect turns those logs into answers:
-
-```
-        ┌─────────────────┐
-        │    Measure      │
-        │  cost & tokens  │
-        └────────┬────────┘
-                 ↓
-        ┌─────────────────┐
-        │    Analyze      │
-        │  skills & MCPs  │
-        └────────┬────────┘
-                 ↓
-        ┌─────────────────┐
-        │    Classify     │
-        │    workflow     │
-        └────────┬────────┘
-                 ↓
-        ┌─────────────────┐
-        │     Drill in    │
-        │  any session    │
-        └────────┬────────┘
-                 ↓
-        Decide what to change
-```
-
-Everything runs on `127.0.0.1`. The logs are only read, never modified.
+[Getting Started](#-quick-start) ·
+[Features](#-features) ·
+[Architecture](#-how-it-works) ·
+[Development](#-development)
 
 ---
 
-## Quick start
+## Why Agents Inspect?
 
-### 1. Install
+AI coding agents make it easier to ship software.
 
-Clone and install:
+But understanding how they work — and what they actually cost — is
+another challenge.
+
+- 💸 **Where does the money go?** Understand token usage, costs, and trends.
+- 🧰 **Which tools are worth keeping?** Analyze skills and MCP servers using
+  usage, cost, interruptions, and commit outcomes.
+- 🔄 **How does your agent spend its time?** See how much work goes into
+  exploration, implementation, testing, debugging, and shipping.
+- 🔎 **What happened in a particular session?** Search your history and
+  inspect individual events, tool calls, and subagent activity.
+
+Agents Inspect turns existing session logs into actionable insights.
+
+No plugins. No instrumentation. No changes to your agent setup.
+
+## ✨ Features
+
+### Overview
+
+Understand your agent usage at a glance.
+
+- Cost, sessions, active time, and cost per commit.
+- Token usage and cache hit rate.
+- Daily cost trends and time-of-day heatmaps.
+- Breakdowns by project, branch, model, and agent configuration.
+- Tool errors and code-change metrics.
+
+### Tooling
+
+Find out which tools help — and which ones get in the way.
+
+- Skill and MCP server usage analysis.
+- Adoption, cost per use, and interruption rates.
+- Skill sequences and skill-graph visualization.
+- Built-in tool statistics.
+- Hook-injected context analysis.
+
+### Workflow
+
+Understand how your agent spends its time.
+
+- Workflow phases: explore, plan, implement, test, review, debug, and ship.
+- Cost breakdowns by phase, model, and subagent.
+- Comparisons between models.
+- Rework detection on frequently modified files.
+
+### History
+
+Explore individual sessions in detail.
+
+- Search by session, project, skill, MCP server, or Git branch.
+- Inspect user messages and tool calls.
+- Explore subagent activity and event traces.
+- Follow context usage throughout a session.
+- Access the underlying JSONL events.
+
+### Local-first by design
+
+Your data stays on your machine.
+
+- Reads existing session logs without modifying them.
+- Binds the server to `127.0.0.1`.
+- Requires no database or external service.
+- Adds no plugins, hooks, or instrumentation to your agents.
+
+---
+
+## 🚀 Quick start
+
+### Requirements
+
+- Node.js 25 or later.
+- Claude Code or GitHub Copilot CLI session logs on your machine.
+- Git and Make.
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/andresdigiovanni/agents-inspect.git
 cd agents-inspect
+```
+
+### 2. Install dependencies
+
+```bash
 make install
 ```
 
-You need Node.js 25+ (the server runs TypeScript directly on Node) and existing Claude Code or Copilot CLI session logs on the same machine.
+### 3. Start the dashboard
 
-### 2. Run it
-
-Development mode (API + hot-reloading UI):
+For development, with API and UI hot reloading:
 
 ```bash
 make dev
 ```
 
-Or build and serve everything from one origin:
+Alternatively, build and serve the application from a single origin:
 
 ```bash
 make start
 ```
 
-### 3. Open the dashboard
+### 4. Explore your data
 
-```
-http://127.0.0.1:3001
-```
+Open the dashboard in your browser:
 
-That's the basic loop:
+**http://127.0.0.1:3001**
 
-```
-open dashboard → scope by agent/project/date → drill into anything
-```
+Filter by agent, project, and date range to explore your usage.
 
-No configuration, no environment variables, no database.
+That's it. No API keys, environment variables, or database setup required.
 
 ---
 
-## What Agents Inspect shows you
+## 🤖 Supported agents
 
-### 📊 Overview
+Agents Inspect currently reads session logs from:
 
-Cost, sessions, active time, cost per commit, cache hit rate, lines changed, tool errors — with trend badges comparing against the previous period.
-
-Daily cost by model, weekday×hour heatmaps, and breakdowns by project, git branch, agent version, permission mode, and reasoning effort.
-
-### 🧰 Tooling
-
-The "what should I uninstall" analysis.
-
-Every skill and MCP server gets a verdict — **Problematic, Useful, Occasional, Unused** — computed from adoption, cost per use, interruption rate, and commit outcomes.
-
-Plus skill sequences, a skill-graph visualization, built-in tool stats, and hook context injection.
-
-### 🔄 Workflow
-
-Every assistant message is classified into a phase — **explore, plan, implement, test, review, debug, ship** — so you can see where the money actually goes.
-
-Subagent costs grouped by type and phase, model comparison, and rework detection on hot files.
-
-### 🗂️ History
-
-Search every session by title, project, skill, MCP server, or git branch.
-
-Expand a session to see its full event trace — user messages, tool calls, subagent sidechains, context usage over time — down to the raw JSONL.
-
----
-
-## Which agents are supported
-
-| Agent | Logs read |
+| Agent | Log location |
 |---|---|
-| Claude Code | `~/.claude/projects/**.jsonl` (incl. subagents) |
+| Claude Code | `~/.claude/projects/**/*.jsonl` |
 | GitHub Copilot CLI | `~/.copilot/session-state/*/events.jsonl` |
 
-Missing directories are handled gracefully — you only need one of the two.
+You only need logs from one supported agent to get started.
 
-The dashboard can be scoped to All, Claude Code only, or Copilot only, and to Interactive or Automated (SDK/IDE) sessions.
-
----
-
-## How it works
-
-Agents Inspect does not install anything into your agents.
-
-It reads the session logs they already write:
-
-```
-  ~/.claude/projects/      ~/.copilot/session-state/
-          │                        │
-          └───────────┬────────────┘
-                      ↓
-               Parse JSONL
-                      ↓
-        Cache (mtime + size, so live
-         sessions refresh as they grow)
-                      ↓
-              Aggregate & analyze
-                      ↓
-            ┌──────────┴──────────┐
-            │                     │
-        JSON API            React UI
-        Fastify             Vite + Tailwind
-```
-
-In development, the API runs on `127.0.0.1:3001` and the Vite dev server on `127.0.0.1:5173` (with `/api/` proxied).
-
-In production (`make start`), one server serves both the API and the built frontend on `127.0.0.1:3001`.
+The dashboard can filter by agent and distinguish interactive sessions
+from automated sessions.
 
 ---
 
-## API
+## 🔍 How it works
 
-Everything the UI shows is also available as JSON:
+Agents Inspect uses the logs your agents already write to disk.
 
-| Endpoint | Purpose |
-|---|---|
-| `/api/summary` | KPIs, trends, daily series, heatmaps |
-| `/api/tooling` | Skills, MCP servers, hooks analysis |
-| `/api/workflow` | Phases, subagents, models, rework |
-| `/api/sessions` | Session list in range |
-| `/api/sessions/:id/detail` | Per-session drill-down |
-| `/api/sessions/:id/trace` | Full event trace |
-| `/api/sessions/:id/raw` | Raw JSONL |
-| `/api/projects` | Project list |
+```text
+┌─────────────────────┐
+│   Agent session     │
+│                     │
+│ Claude Code         │
+│ GitHub Copilot CLI  │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│    Read JSONL       │
+│    Session logs     │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│ Parse and aggregate │
+│ Cache and analyze   │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│     JSON API        │
+│                     │
+│  Fastify + React    │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│      Dashboard      │
+│                     │
+│ Costs · Tools       │
+│ Workflow · History  │
+└─────────────────────┘
+```
 
-All endpoints accept `from`/`to` dates and optional `agent`, `source`, and `project` scopes.
+The server reads logs, parses events, and aggregates the information
+needed by the dashboard.
+
+In development, the API runs on `127.0.0.1:3001` and Vite serves the
+frontend on `127.0.0.1:5173`.
+
+In production mode, `make start` serves both the API and the built
+frontend from `127.0.0.1:3001`.
+
+### A note on cost estimates
+
+Claude Code sessions report their own USD cost, which is apportioned
+to messages by token weight.
+
+GitHub Copilot logs do not include USD costs, so their cost figures
+are estimates based on a public list-price table.
+
+Estimated values are identified as such in the UI.
 
 ---
 
-## Cost model
+## 🧭 Design principles
 
-Claude Code sessions report their own USD cost, which is apportioned to messages by token weight.
+**Local and read-only**
 
-Copilot logs do not include USD, so costs are **estimates** computed from a public list-price table.
+Session logs are read from disk and never modified. The server binds
+to localhost.
 
-Estimated values are labeled as such in the UI.
+**Zero instrumentation**
 
----
+No plugins, hooks, or agent configuration are required.
 
-## A better mental model
+**Transparent estimates**
 
-Think of Agents Inspect as a **fitness tracker for your agents**.
+Estimated costs and other inferred metrics are identified as such.
 
-Without it:
+**One unified view**
 
-```
-Agent runs
- ↓
-Something feels expensive
- ↓
-Maybe uninstall that skill?
- ↓
-Guess
-```
-
-With it:
-
-```
-Agent runs
- ↓
-Measure cost, tokens, time
- ↓
-See which skills & MCPs pay off
- ↓
-See which phases burn money
- ↓
-Decide based on data
-```
-
-The goal is not to supervise the agent.
-
-The goal is to **improve the setup over time**.
+Cost, tooling, workflow, and session history in one place.
 
 ---
 
-## Requirements
-
-End users need:
-
-- Node.js 25+
-- Claude Code or GitHub Copilot CLI session logs on the machine
-
-That's it. No database, no external services.
-
----
-
-## Development
-
-Clone the repository:
-
-```bash
-git clone https://github.com/andresdigiovanni/agents-inspect.git
-cd agents-inspect
-make install
-```
-
-Run the test suite:
-
-```bash
-make test
-```
-
-Everything that must pass before a commit:
-
-```bash
-make check
-```
-
-(`make check` runs lint, typecheck, tests, and build.)
-
----
-
-## Project structure
-
-```
-agents-inspect/
-├── server/          # Fastify API + parsing/aggregation (runs directly on Node)
-│   └── copilot/     # GitHub Copilot CLI support
-├── web/             # React SPA (Vite + Tailwind)
-├── shared/          # Types shared by server and web
-├── Makefile
-└── README.md
-```
-
----
-
-## Design principles
-
-Agents Inspect is built around a few simple principles:
-
-### Local and read-only
-
-Logs are read from disk and never modified. The server binds to localhost only.
-
-### Zero instrumentation
-
-No plugins, no hooks, no agent configuration. If the logs exist, it works.
-
-### Documented estimates
-
-When a number is an estimate (e.g. Copilot costs, injected context tokens), the UI says so.
-
-### One tool, whole picture
-
-Cost, tooling, workflow, and history in one place, scoped by agent, project, and date.
-
----
-
-## Contributing
+## 🤝 Contributing
 
 Contributions, ideas, and bug reports are welcome.
 
-If there is a question about your agent usage you cannot answer with the current dashboard, that's a good candidate for a new view or metric.
+If there's a question about your agent usage that the dashboard cannot
+answer yet, consider proposing a new metric or visualization.
+
+---
+
+## License
+
+See [LICENSE](LICENSE).
