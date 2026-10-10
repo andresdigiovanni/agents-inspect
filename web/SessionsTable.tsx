@@ -70,7 +70,7 @@ const columns = [
       <button type="button" aria-expanded={row.getIsExpanded()} onClick={row.getToggleExpandedHandler()} className="cursor-pointer text-left">
         <div className="font-medium text-gray-900">
           {row.getIsExpanded() ? '▾' : '▸'} {row.original.title}{' '}
-          <Chip text={row.original.agent === 'copilot' ? 'Copilot' : 'CC'} className={row.original.agent === 'copilot' ? 'bg-sky-100 text-sky-800' : 'bg-orange-100 text-orange-800'} />
+          <Chip text={row.original.agent === 'copilot' ? 'Copilot' : row.original.agent === 'opencode' ? 'opencode' : 'CC'} className={row.original.agent === 'copilot' ? 'bg-sky-100 text-sky-800' : row.original.agent === 'opencode' ? 'bg-violet-100 text-violet-800' : 'bg-orange-100 text-orange-800'} />
         </div>
         <div className="font-mono text-xs text-gray-400">{row.original.id}</div>
       </button>
@@ -92,9 +92,12 @@ const columns = [
   col.accessor('models', {
     header: 'Models',
     enableSorting: false,
-    cell: (info) => (
+    cell: ({ row }) => (
       <div className="flex flex-wrap gap-1">
-        {info.getValue().map((m) => <Chip key={m} text={m} className="bg-sky-50 text-sky-700" />)}
+        {row.original.models.map((m) => <Chip key={m} text={m} className="bg-sky-50 text-sky-700" />)}
+        {row.original.providers.map((p) => (
+          <span key={p} title="opencode provider"><Chip text={p} className="bg-gray-100 text-gray-600" /></span>
+        ))}
       </div>
     ),
   }),

@@ -4,13 +4,14 @@ import { extname, join, normalize, resolve, sep } from 'node:path'
 import { findSession, loadRecords, loadSessions } from './load.ts'
 import { findCopilotSession } from './copilot/load.ts'
 import { buildCopilotTrace } from './copilot/trace.ts'
+import { opencodeRaw, opencodeTrace } from './opencode/load.ts'
 import { computeSummary, sessionsInRange } from './aggregate.ts'
 import { computeAnalysis } from './analysis.ts'
 import { computeWorkflow } from './workflow.ts'
 import { computeDetail } from './detail.ts'
 import { parseLines } from './parse.ts'
 import { buildTrace } from './trace.ts'
-import { inScope, parseScope, projectList } from './scope.ts'
+import { inScope, parseScope, projectList, providerList } from './scope.ts'
 import type { SessionRecord } from './record.ts'
 import type { Scope } from '../shared/types.ts'
 
@@ -26,26 +27,33 @@ async function isFile(p: string): Promise<boolean> {
   try { return (await stat(p)).isFile() } catch { return false }
 }
 
-export function buildApp(opts: { projectsDir: string; copilotDir?: string; staticDir?: string }): FastifyInstance {
+export function buildApp(opts: { projectsDir: string; copilotDir?: string; opencodeDb?: string; staticDir?: string }): FastifyInstance {
   const app = Fastify()
   const dir = opts.projectsDir
   const cp = opts.copilotDir
+  const oc = opts.opencodeDb
 
-  type Q = { from?: string; to?: string; source?: string; project?: string; agent?: string }
+  type Q = { from?: string; to?: string; project?: string; agent?: string; provider?: string }
   const parseQuery = (q: Q): { from: Date; to: Date; scope: Scope } | { error: string } => {
     const from = Date.parse(q.from ?? '')
     const to = Date.parse(q.to ?? '')
     if (Number.isNaN(from) || Number.isNaN(to)) return { error: 'from and to must be ISO dates' }
     const scope = parseScope(q)
-    if (!scope) return { error: 'source must be all, interactive or automated; agent must be all, claude-code or copilot' }
+    if (!scope) return { error: 'agent must be a comma-separated list of claude-code, copilot and opencode' }
     return { from: new Date(from), to: new Date(to), scope }
   }
-  const scoped = async (scope: Scope): Promise<SessionRecord[]> => (await loadRecords(dir, cp)).filter(r => inScope(r.summary, scope))
+  const providerError = async (scope: Scope): Promise<string | null> => {
+    if (scope.providers === null) return null
+    const known = new Set(providerList(await loadSessions(dir, cp, oc)))
+    return scope.providers.some(p => !known.has(p)) ? 'provider must be a comma-separated list of providers present in the data' : null
+  }
   const range = <T>(path: string, compute: (records: SessionRecord[], from: Date, to: Date) => T) =>
     app.get<{ Querystring: Q }>(path, async (req, reply) => {
       const q = parseQuery(req.query)
       if ('error' in q) return reply.code(400).send(q)
-      return compute(await scoped(q.scope), q.from, q.to)
+      const err = await providerError(q.scope)
+      if (err !== null) return reply.code(400).send({ error: err })
+      return compute((await loadRecords(dir, cp, oc)).filter(r => inScope(r.summary, q.scope)), q.from, q.to)
     })
 
   range('/api/summary', computeSummary)
@@ -53,14 +61,21 @@ export function buildApp(opts: { projectsDir: string; copilotDir?: string; stati
   range('/api/analysis', computeAnalysis)
   range('/api/tooling', computeAnalysis)
   range('/api/workflow', computeWorkflow)
-  app.get<{ Querystring: { agent?: string } }>('/api/projects', async (req, reply) => {
+  app.get<{ Querystring: { agent?: string; provider?: string } }>('/api/projects', async (req, reply) => {
+    const scope = parseScope({ agent: req.query.agent, provider: req.query.provider })
+    if (!scope) return reply.code(400).send({ error: 'agent must be a comma-separated list of claude-code, copilot and opencode' })
+    const err = await providerError(scope)
+    if (err !== null) return reply.code(400).send({ error: err })
+    return projectList((await loadSessions(dir, cp, oc)).filter(s => inScope(s, scope)))
+  })
+  app.get<{ Querystring: { agent?: string } }>('/api/providers', async (req, reply) => {
     const scope = parseScope({ agent: req.query.agent })
-    if (!scope) return reply.code(400).send({ error: 'agent must be all, claude-code or copilot' })
-    return projectList((await loadSessions(dir, cp)).filter(s => inScope(s, scope)))
+    if (!scope) return reply.code(400).send({ error: 'agent must be a comma-separated list of claude-code, copilot and opencode' })
+    return providerList((await loadSessions(dir, cp, oc)).filter(s => inScope(s, scope)))
   })
 
   app.get<{ Params: { id: string } }>('/api/sessions/:id/detail', async (req, reply) => {
-    const r = (await loadRecords(dir, cp)).find(x => x.summary.id === req.params.id)
+    const r = (await loadRecords(dir, cp, oc)).find(x => x.summary.id === req.params.id)
     if (!r) return reply.code(404).send({ error: 'session not found' })
     return computeDetail(r)
   })
@@ -73,15 +88,20 @@ export function buildApp(opts: { projectsDir: string; copilotDir?: string; stati
       return buildTrace(parent, subs)
     }
     const c = cp ? await findCopilotSession(cp, req.params.id) : null
-    if (!c) return reply.code(404).send({ error: 'session not found' })
-    return buildCopilotTrace(parseLines(await readFile(c.events, 'utf8')))
+    if (c) return buildCopilotTrace(parseLines(await readFile(c.events, 'utf8')))
+    const ocTrace = oc ? await opencodeTrace(oc, req.params.id) : null
+    if (ocTrace) return ocTrace
+    return reply.code(404).send({ error: 'session not found' })
   })
 
   app.get<{ Params: { id: string } }>('/api/sessions/:id/raw', async (req, reply) => {
     const s = await findSession(dir, req.params.id)
-    const path = s?.parent ?? (cp ? (await findCopilotSession(cp, req.params.id))?.events : undefined)
-    if (!path) return reply.code(404).send({ error: 'session not found' })
-    return reply.type('text/plain; charset=utf-8').send(await readFile(path, 'utf8'))
+    if (s) return reply.type('text/plain; charset=utf-8').send(await readFile(s.parent, 'utf8'))
+    const c = cp ? await findCopilotSession(cp, req.params.id) : null
+    if (c) return reply.type('text/plain; charset=utf-8').send(await readFile(c.events, 'utf8'))
+    const raw = oc ? await opencodeRaw(oc, req.params.id) : null
+    if (raw !== null) return reply.type('text/plain; charset=utf-8').send(raw)
+    return reply.code(404).send({ error: 'session not found' })
   })
 
   if (opts.staticDir) {

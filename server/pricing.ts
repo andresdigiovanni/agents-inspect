@@ -1,6 +1,6 @@
 import type { TokenUsage } from '../shared/types.ts'
 
-// Public list prices in USD per million tokens (October 2026). Estimates only: Copilot logs no USD.
+// Public list prices in USD per million tokens (October 2026). Estimates only: Copilot and some opencode providers log no USD.
 // First matching pattern wins, so more specific families go first.
 export interface Price { input: number; output: number; cacheRead: number; cacheWrite: number }
 
@@ -10,6 +10,13 @@ const TABLE: [RegExp, Price][] = [
   [/^claude-opus/, p(5, 25, 0.5, 6.25)],
   [/^claude-sonnet/, p(3, 15, 0.3, 3.75)],
   [/^claude-haiku/, p(1, 5, 0.1, 1.25)],
+  // opencode providers that report no USD: MiniMax standard tier (cache write billed as input),
+  // DeepSeek off-peak (deepseek-v4-flash is served by deepseek-flash), and Ling free tiers.
+  // glm-5.3, qwen3.6-plus and big-pickle stay unpriced: z.ai publishes no per-token price for
+  // coding-plan subscriptions and the others already report real USD in the db.
+  [/^minimax-m3$/, p(0.3, 1.2, 0.06, 0.3)],
+  [/^deepseek-v4-flash/, p(0.15, 0.6, 0.003, 0.15)],
+  [/^ling-.*-free$/, p(0, 0, 0, 0)],
   [/^gpt-4o-mini/, p(0.15, 0.6, 0.075, 0.15)],
   [/^gpt-4o/, p(2.5, 10, 1.25, 2.5)],
   [/^gpt-4\.1/, p(2, 8, 0.5, 2)],

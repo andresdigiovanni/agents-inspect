@@ -17,7 +17,7 @@ const rec = (s: SessionSummary, o: Partial<SessionRecord> = {}): SessionRecord =
   summary: s, messages: [], turnTimes: [], skillCalls: [], mcpCalls: [], mcpTools: {}, subagents: [], skillWindows: [], skillSequence: [], skillListingChars: {}, ...recordExtras(), ...o,
 })
 const msg = (ts: string, model: string, phase: Phase, phaseSource: PhaseSource, costUsd: number, agentId: string | null = null): MessageEvent =>
-  ({ ts, model, tokens: { ...zero, output: 10, total: 10 }, costUsd, sidechain: agentId !== null, skill: null, phase, phaseSource, agentId, mcpServer: null, context: 0 })
+  ({ ts, model, provider: null, tokens: { ...zero, output: 10, total: 10 }, costUsd, sidechain: agentId !== null, skill: null, phase, phaseSource, agentId, mcpServer: null, context: 0 })
 const run = (o: Partial<SubagentRun>): SubagentRun => ({
   agentId: 'a', agentType: 'general-purpose', description: '', model: 'haiku', toolUseId: null, startedAt: null, durationMs: null,
   tokens: 0, costUsd: 0, toolCalls: 0, toolErrors: 0, phase: 'implement', ...o,

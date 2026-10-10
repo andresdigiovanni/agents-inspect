@@ -3,6 +3,7 @@ import type { JSX } from 'react'
 import { ToolingTab } from './ToolingTab.tsx'
 import type { Query } from './api.ts'
 import type { Scope } from '../shared/types.ts'
+import { ALL_AGENTS } from '../shared/types.ts'
 import { ScopeSelector } from './ScopeSelector.tsx'
 import { formatHash, NO_FILTERS, parseHash } from './hash.ts'
 import type { Route, Tab } from './hash.ts'
@@ -24,7 +25,7 @@ export function App(): JSX.Element {
   const [route, setRoute] = useState<Route>(() => parseHash(location.hash))
   const [choice, setChoice] = useState<RangeChoice>({ kind: '30d' })
   const [now] = useState(() => new Date())
-  const [scope, setScope] = useState<Scope>({ agent: 'all', source: 'all', project: null })
+  const [scope, setScope] = useState<Scope>(() => ({ agents: [...ALL_AGENTS], project: null, providers: null }))
   const range = useMemo<Query | null>(() => {
     const r = resolveRange(choice, now)
     return r === null ? null : { ...r, scope }

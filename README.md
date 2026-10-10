@@ -92,7 +92,7 @@ Your data stays on your machine.
 ### Requirements
 
 - Node.js 25 or later.
-- Claude Code or GitHub Copilot CLI session logs on your machine.
+- Claude Code, GitHub Copilot CLI or opencode session logs on your machine.
 - Git and Make.
 
 ### 1. Clone the repository
@@ -142,11 +142,16 @@ Agents Inspect currently reads session logs from:
 |---|---|
 | Claude Code | `~/.claude/projects/**/*.jsonl` |
 | GitHub Copilot CLI | `~/.copilot/session-state/*/events.jsonl` |
+| opencode | `~/.local/share/opencode/opencode.db` (SQLite, read-only) |
 
 You only need logs from one supported agent to get started.
 
-The dashboard can filter by agent and distinguish interactive sessions
-from automated sessions.
+The dashboard can filter by agent and project.
+
+opencode sessions also show the provider that served them (`providerID`
+from the opencode database) in the scope selector, the session list,
+and the overview breakdown, and can be filtered by it. Claude Code and
+GitHub Copilot logs carry no provider, so none is shown for them.
 
 ---
 
@@ -160,6 +165,7 @@ Agents Inspect uses the logs your agents already write to disk.
 │                     │
 │ Claude Code         │
 │ GitHub Copilot CLI  │
+│ opencode            │
 └──────────┬──────────┘
            │
            ▼
@@ -206,6 +212,10 @@ to messages by token weight.
 
 GitHub Copilot logs do not include USD costs, so their cost figures
 are estimates based on a public list-price table.
+
+opencode sessions report provider-billed USD when the provider meters per
+token; sessions on subscription plans are estimated from public list
+prices, and models without a public price show no cost.
 
 Estimated values are identified as such in the UI.
 

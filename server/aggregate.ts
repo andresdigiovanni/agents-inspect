@@ -45,6 +45,7 @@ const sumOf = (l: SessionSummary[], f: (s: SessionSummary) => number) => l.reduc
 const costPerCommitOf = (l: SessionSummary[]) => ratio(sumOf(l, s => s.costUsd ?? 0), sumOf(l, s => s.commits))
 const BREAKDOWN_KEYS: Record<BreakdownDim, (s: SessionSummary) => string | null> = {
   project: s => s.project, branch: s => s.gitBranch, version: s => s.version, permissionMode: s => s.permissionMode, effort: s => s.effort,
+  provider: s => s.providers.length === 0 ? null : s.providers.length === 1 ? s.providers[0]! : 'mixed',
 }
 
 export function breakdown(list: SessionSummary[], key: (s: SessionSummary) => string | null): BreakdownRow[] {

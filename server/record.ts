@@ -2,7 +2,7 @@ import type { Phase, PhaseSource, SessionSummary, SkillWindow, SubagentRun, Toke
 export type { SkillWindow, SubagentRun }
 
 export interface MessageEvent {
-  ts: string | null; model: string; tokens: TokenUsage; costUsd: number; sidechain: boolean; skill: string | null
+  ts: string | null; model: string; provider: string | null; tokens: TokenUsage; costUsd: number; sidechain: boolean; skill: string | null
   phase: Phase; phaseSource: PhaseSource; agentId: string | null
   mcpServer: string | null; context: number
 }
@@ -26,4 +26,5 @@ export interface SessionRecord {
   hooks: HookRun[]
   fileEdits: Record<string, number>
   phaseFlow: { from: Phase; to: Phase }[]
+  costReported?: boolean
 }

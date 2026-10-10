@@ -119,13 +119,16 @@ export function SessionSummaryPanel(props: { id: string }): JSX.Element {
       {d.summary.agent === 'copilot' && (
         <p className="text-xs text-amber-700">Copilot logs token totals per model at session end: per-message tokens and costs are estimated from those totals and list prices.</p>
       )}
+      {d.summary.agent === 'opencode' && (
+        <p className="text-xs text-amber-700">opencode reports USD cost only for per-token providers: sessions on subscription plans show list-price estimates, or no cost when the model has no public price.</p>
+      )}
       <Facts d={d} />
       <div className="grid gap-4 md:grid-cols-3">
         <Block title="Cost by model">
           <List empty="No messages.">
             {d.costByModel.map((m) => (
               <li key={m.model} className="flex justify-between gap-2 tabular-nums">
-                <span className="truncate">{m.model}</span>
+                <span className="truncate">{m.model}{m.provider !== null && <span className="text-gray-400"> · {m.provider}</span>}</span>
                 <span>{formatUsd(m.costUsd)} · {formatCompact(m.tokens)}</span>
               </li>
             ))}

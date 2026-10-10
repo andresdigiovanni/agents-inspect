@@ -4,10 +4,11 @@ import { PHASES } from './phase.ts'
 import { relativeTo } from './workflow.ts'
 
 export function computeDetail(r: SessionRecord): SessionDetail {
-  const byModel = new Map<string, { model: string; costUsd: number; tokens: number }>()
+  const byModel = new Map<string, { model: string; provider: string | null; costUsd: number; tokens: number }>()
   const costByPhase = Object.fromEntries(PHASES.map(p => [p, 0])) as Record<Phase, number>
   for (const m of r.messages) {
-    const e = byModel.get(m.model) ?? { model: m.model, costUsd: 0, tokens: 0 }
+    const e = byModel.get(m.model) ?? { model: m.model, provider: m.provider, costUsd: 0, tokens: 0 }
+    if (m.provider !== e.provider) e.provider = null
     e.costUsd += m.costUsd
     e.tokens += m.tokens.total
     byModel.set(m.model, e)

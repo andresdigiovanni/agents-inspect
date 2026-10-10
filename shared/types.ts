@@ -1,10 +1,10 @@
-export type Agent = 'claude-code' | 'copilot'
-export type AgentScope = Agent | 'all'
+export type Agent = 'claude-code' | 'copilot' | 'opencode'
+export const ALL_AGENTS: readonly Agent[] = ['claude-code', 'copilot', 'opencode']
 export interface ToolCalls { total: number; skills: number; mcp: number; builtin: number }
 export interface TokenUsage { input: number; output: number; cacheCreation: number; cacheRead: number; total: number }
 export interface SessionSummary {
   id: string; agent: Agent; project: string; title: string; startedAt: string;
-  models: string[]; userTurns: number; toolCalls: ToolCalls; toolRatio: number | null;
+  models: string[]; providers: string[]; userTurns: number; toolCalls: ToolCalls; toolRatio: number | null;
   tokens: TokenUsage; costUsd: number | null; skills: string[]; mcpServers: string[];
   skillsUsed: string[]; mcpServersUsed: string[]; agentTypes: string[];
   durationMs: number | null; linesAdded: number | null; linesRemoved: number | null;
@@ -33,7 +33,7 @@ export interface PeriodMetrics {
   apiMs: number; toolMs: number; retryMs: number;
   breakdowns: Record<BreakdownDim, BreakdownRow[]>; heatmapCost: number[][];
 }
-export type BreakdownDim = 'project' | 'branch' | 'version' | 'permissionMode' | 'effort'
+export type BreakdownDim = 'project' | 'branch' | 'version' | 'permissionMode' | 'effort' | 'provider'
 export interface BreakdownRow {
   key: string | null; sessions: number; costUsd: number; medianCostPerSession: number | null
   toolErrorPct: number | null; interruptionsPerSession: number | null; commits: number
@@ -99,8 +99,7 @@ export interface Workflow {
   phaseFlow: { from: Phase; to: Phase; count: number }[]
   rework: Rework
 }
-export type Source = 'all' | 'interactive' | 'automated'
-export interface Scope { agent: AgentScope; source: Source; project: string | null }
+export interface Scope { agents: Agent[]; project: string | null; providers: string[] | null }
 export interface ProjectOption { project: string; sessions: number }
 export interface SubagentRun {
   agentId: string; agentType: string; description: string; model: string; toolUseId: string | null
@@ -113,7 +112,7 @@ export interface SkillWindow {
 }
 export interface SessionDetail {
   summary: SessionSummary
-  costByModel: { model: string; costUsd: number; tokens: number }[]
+  costByModel: { model: string; provider: string | null; costUsd: number; tokens: number }[]
   costByPhase: Record<Phase, number>
   context: { ts: string | null; context: number }[]
   subagents: Omit<SubagentRun, 'toolUseId'>[]

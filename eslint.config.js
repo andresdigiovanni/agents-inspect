@@ -7,8 +7,8 @@ export default tseslint.config(
   js.configs.recommended,
   tseslint.configs.recommended,
   {
-    // Raw JSONL log lines have no schema; the parser reads them untyped.
-    files: ['server/parse.ts', 'server/trace.ts', 'server/test/parse.test.ts', 'server/copilot/**/*.ts', 'server/test/copilot*.ts'],
+    // Raw JSONL log lines and opencode JSON columns have no schema; the parsers read them untyped.
+    files: ['server/parse.ts', 'server/trace.ts', 'server/test/parse.test.ts', 'server/copilot/**/*.ts', 'server/test/copilot*.ts', 'server/opencode/db.ts', 'server/opencode/parse.ts', 'server/opencode/trace.ts', 'server/opencode/load.ts'],
     rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
   {

@@ -1,6 +1,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { loadCopilotRecords } from './copilot/load.ts'
+import { loadOpencodeRecords } from './opencode/load.ts'
 import { parseLines, parseRecord } from './parse.ts'
 import type { SessionSummary } from '../shared/types.ts'
 import type { SessionRecord, SubagentInput } from './record.ts'
@@ -52,11 +53,11 @@ async function cacheKey(s: SessionFiles): Promise<string> {
   return [...parts, ...metas].join('|')
 }
 
-export async function loadSessions(projectsDir: string, copilotDir?: string): Promise<SessionSummary[]> {
-  return (await loadRecords(projectsDir, copilotDir)).map(r => r.summary)
+export async function loadSessions(projectsDir: string, copilotDir?: string, opencodeDb?: string): Promise<SessionSummary[]> {
+  return (await loadRecords(projectsDir, copilotDir, opencodeDb)).map(r => r.summary)
 }
 
-export async function loadRecords(projectsDir: string, copilotDir?: string): Promise<SessionRecord[]> {
+export async function loadRecords(projectsDir: string, copilotDir?: string, opencodeDb?: string): Promise<SessionRecord[]> {
   const files = await listSessionFiles(projectsDir)
   const live = new Set(files.map(s => s.parent))
   for (const k of cache.keys()) if (!live.has(k)) cache.delete(k)
@@ -75,7 +76,7 @@ export async function loadRecords(projectsDir: string, copilotDir?: string): Pro
     }
     if (hit.record) out.push(hit.record)
   }
-  return copilotDir ? [...out, ...(await loadCopilotRecords(copilotDir))] : out
+  return [...out, ...(copilotDir ? await loadCopilotRecords(copilotDir) : []), ...(opencodeDb ? await loadOpencodeRecords(opencodeDb) : [])]
 }
 
 export async function findSession(projectsDir: string, id: string): Promise<SessionFiles | null> {

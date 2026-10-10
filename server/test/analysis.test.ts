@@ -17,7 +17,7 @@ const summary = (id: string, startedAt: string, o: Partial<SessionSummary> = {})
 })
 const rec = (s: SessionSummary, o: Partial<SessionRecord> = {}): SessionRecord => ({ summary: s, messages: [], turnTimes: [], skillCalls: [], mcpCalls: [], mcpTools: {}, subagents: [], skillWindows: [], skillSequence: [], skillListingChars: {}, ...recordExtras(), ...o })
 const msg = (ts: string, model: string, total: number, costUsd: number, skill: string | null, sidechain = false): MessageEvent =>
-  ({ ts, model, tokens: { ...zero, output: total, total }, costUsd, sidechain, skill, phase: 'other', phaseSource: 'none', agentId: null, mcpServer: null, context: 0 })
+  ({ ts, model, provider: null, tokens: { ...zero, output: total, total }, costUsd, sidechain, skill, phase: 'other', phaseSource: 'none', agentId: null, mcpServer: null, context: 0 })
 const fun = (o: Partial<Omit<UsageFunnel, 'verdict'>>): Omit<UsageFunnel, 'verdict'> =>
   ({ sessionsLoaded: 10, sessionsUsed: 0, adoptionPct: 0, calls: 0, errors: 0, errorRatePct: null, usedDays: 0, lastUsedAt: null, ...o })
 
@@ -114,7 +114,7 @@ test('skills and servers sort by verdict, then calls desc, then name asc', () =>
 
 test('tools sort by calls desc then name; models count a session once, tie-break by name, cache hit uses all input kinds', () => {
   const m = (model: string, cacheRead: number, cacheCreation: number, input: number, costUsd = 0.5) =>
-    ({ ts: null, model, tokens: { input, output: 0, cacheCreation, cacheRead, total: input + cacheCreation + cacheRead }, costUsd, sidechain: false, skill: null, phase: 'other' as const, phaseSource: 'none' as const, agentId: null, mcpServer: null, context: 0 })
+    ({ ts: null, model, provider: null, tokens: { input, output: 0, cacheCreation, cacheRead, total: input + cacheCreation + cacheRead }, costUsd, sidechain: false, skill: null, phase: 'other' as const, phaseSource: 'none' as const, agentId: null, mcpServer: null, context: 0 })
   const a = rec(summary('a', '2026-10-02T09:00:00.000Z', { mcpServers: ['x'], mcpServersUsed: ['x'] }), {
     mcpCalls: [{ ts: null, server: 'x', tool: 'b', error: false }, { ts: null, server: 'x', tool: 'a', error: false }, { ts: null, server: 'x', tool: 'c', error: false }, { ts: null, server: 'x', tool: 'c', error: false }],
     messages: [m('zz', 50, 25, 25), m('zz', 0, 0, 0), m('aa', 0, 0, 1, 1)],

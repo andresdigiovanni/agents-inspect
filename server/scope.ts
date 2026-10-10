@@ -1,23 +1,22 @@
-import type { AgentScope, ProjectOption, Scope, SessionSummary, Source } from '../shared/types.ts'
+import type { Agent, ProjectOption, Scope, SessionSummary } from '../shared/types.ts'
+import { ALL_AGENTS } from '../shared/types.ts'
 
-const SOURCES: Source[] = ['all', 'interactive', 'automated']
-
-const AGENTS: AgentScope[] = ['all', 'claude-code', 'copilot']
-
-export function parseScope(q: { agent?: string; source?: string; project?: string }): Scope | null {
-  const source = (q.source ?? 'all') as Source
-  const agent = (q.agent ?? 'all') as AgentScope
-  if (!SOURCES.includes(source) || !AGENTS.includes(agent)) return null
-  return { agent, source, project: q.project ? q.project : null }
+export function parseScope(q: { agent?: string; project?: string; provider?: string }): Scope | null {
+  const raw = (q.agent ?? '').trim()
+  const agents: Agent[] = raw === '' || raw === 'all'
+    ? [...ALL_AGENTS]
+    : [...new Set(raw.split(',').map(s => s.trim()).filter(s => s !== ''))] as Agent[]
+  if (agents.length === 0 || agents.some(a => !ALL_AGENTS.includes(a))) return null
+  const rawP = (q.provider ?? '').trim()
+  const list = [...new Set(rawP.split(',').map(s => s.trim()).filter(s => s !== ''))]
+  const providers = rawP === '' || rawP === 'all' || list.length === 0 ? null : list
+  return { agents, project: q.project ? q.project : null, providers }
 }
 
-export const isAutomated = (s: SessionSummary): boolean => s.entrypoint !== null && s.entrypoint !== 'cli'
-
 export function inScope(s: SessionSummary, scope: Scope): boolean {
-  if (scope.agent !== 'all' && s.agent !== scope.agent) return false
+  if (!scope.agents.includes(s.agent)) return false
+  if (scope.providers !== null && s.agent === 'opencode' && !s.providers.some(p => scope.providers!.includes(p))) return false
   if (scope.project !== null && s.project !== scope.project) return false
-  if (scope.source === 'automated') return isAutomated(s)
-  if (scope.source === 'interactive') return !isAutomated(s)
   return true
 }
 
@@ -25,4 +24,8 @@ export function projectList(sessions: SessionSummary[]): ProjectOption[] {
   const counts = new Map<string, number>()
   for (const s of sessions) counts.set(s.project, (counts.get(s.project) ?? 0) + 1)
   return [...counts].map(([project, n]) => ({ project, sessions: n })).sort((a, b) => b.sessions - a.sessions || a.project.localeCompare(b.project))
+}
+
+export function providerList(sessions: SessionSummary[]): string[] {
+  return [...new Set(sessions.flatMap(s => s.providers))].sort()
 }

@@ -115,7 +115,7 @@ export function parseCopilotRecord(events: any[], fb: CopilotFallback): SessionR
         models.add(model)
         const skill = windowFor()?.skill ?? null
         for (const r of Array.isArray(d.toolRequests) ? d.toolRequests : []) if (typeof r?.toolCallId === 'string') msgOfTool.set(r.toolCallId, messages.length)
-        messages.push({ ts, model, tokens: zero(), costUsd: 0, sidechain: parent !== null, skill, phase: 'other', phaseSource: 'none', agentId: parent, mcpServer: null, context: 0 })
+        messages.push({ ts, model, provider: null, tokens: zero(), costUsd: 0, sidechain: parent !== null, skill, phase: 'other', phaseSource: 'none', agentId: parent, mcpServer: null, context: 0 })
         weights.push(Math.max(num(d.outputTokens), 1))
         signals.push({ skill: skillPhase(skill), tool: null })
         break
@@ -246,7 +246,7 @@ export function parseCopilotRecord(events: any[], fb: CopilotFallback): SessionR
     if (idxs.length === 0) {
       idxs = [messages.length]
       models.add(model)
-      messages.push({ ts: shutdownTs, model, tokens: zero(), costUsd: 0, sidechain: false, skill: null, phase: 'other', phaseSource: 'none', agentId: null, mcpServer: null, context: 0 })
+      messages.push({ ts: shutdownTs, model, provider: null, tokens: zero(), costUsd: 0, sidechain: false, skill: null, phase: 'other', phaseSource: 'none', agentId: null, mcpServer: null, context: 0 })
       weights.push(1)
       signals.push({ skill: null, tool: null })
     }
@@ -316,7 +316,7 @@ export function parseCopilotRecord(events: any[], fb: CopilotFallback): SessionR
   const title = str(ws.name).trim() || (firstText ?? '').replace(/\s+/g, ' ').trim().slice(0, 120) || fb.id
   const summary: SessionSummary = {
     id: fb.id, agent: 'copilot', project: cwd ?? (str(ws.cwd) || fb.id), title, startedAt,
-    models: [...models].sort(), userTurns: turnTimes.length, toolCalls,
+    models: [...models].sort(), providers: [], userTurns: turnTimes.length, toolCalls,
     toolRatio: turnTimes.length ? toolCalls.total / turnTimes.length : null,
     tokens, costUsd: shutdown ? messages.reduce((n, m) => n + m.costUsd, 0) : null,
     skills: [...new Set([...skills, ...skillsUsed])].sort(), mcpServers: servers,

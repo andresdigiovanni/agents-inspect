@@ -20,7 +20,7 @@ const rec = (summary: SessionSummary, o: Partial<SessionRecord> = {}): SessionRe
   ({ summary, messages: [], turnTimes: [], skillCalls: [], mcpCalls: [], mcpTools: {}, subagents: [], skillWindows: [], skillSequence: [], skillListingChars: {}, ...recordExtras(), ...o })
 const last = (records: SessionRecord[], days: number) => computeSummary(records, new Date(now.getTime() - days * 86_400_000), now)
 const msg = (ts: string, model: string, total: number, costUsd: number): MessageEvent =>
-  ({ ts, model, tokens: { input: 0, output: total, cacheCreation: 0, cacheRead: 0, total }, costUsd, sidechain: false, skill: null, phase: 'other', phaseSource: 'none', agentId: null, mcpServer: null, context: 0 })
+  ({ ts, model, provider: null, tokens: { input: 0, output: total, cacheCreation: 0, cacheRead: 0, total }, costUsd, sidechain: false, skill: null, phase: 'other', phaseSource: 'none', agentId: null, mcpServer: null, context: 0 })
 
 test('trendPct', () => {
   assert.equal(trendPct(15, 10), 50); assert.equal(trendPct(5, 10), -50); assert.equal(trendPct(3, 0), null); assert.equal(trendPct(0, 0), null)
@@ -141,7 +141,7 @@ test('heatmap: 7 x 24 user turns, Monday first, local hour, window only', () => 
 })
 
 test('daily sums each token type separately and byModel tokens use the total', () => {
-  const m: MessageEvent = { ts: '2026-10-07T01:00:00.000Z', model: 'opus', tokens: { input: 1, output: 2, cacheCreation: 3, cacheRead: 4, total: 10 }, costUsd: 0, sidechain: false, skill: null, phase: 'other', phaseSource: 'none', agentId: null, mcpServer: null, context: 0 }
+  const m: MessageEvent = { ts: '2026-10-07T01:00:00.000Z', model: 'opus', provider: null, tokens: { input: 1, output: 2, cacheCreation: 3, cacheRead: 4, total: 10 }, costUsd: 0, sidechain: false, skill: null, phase: 'other', phaseSource: 'none', agentId: null, mcpServer: null, context: 0 }
   const day = last([rec(s('a', daysAgo(1)), { messages: [m, m] })], 7).daily[7]
   assert.deepEqual(day.tokens, { input: 2, output: 4, cacheCreation: 6, cacheRead: 8, total: 20 })
   assert.deepEqual(day.byModel, { opus: { tokens: 20, costUsd: 0 } })
@@ -215,6 +215,16 @@ test('breakdowns group by session attribute, null keys kept, sorted by cost', ()
   assert.deepEqual(r.breakdowns.project.map(b => b.key), ['/y', '/x'])
   assert.deepEqual(r.breakdowns.effort.map(b => b.key), [null])
   assert.equal(r.breakdowns.permissionMode.length, 1)
+})
+
+test('breakdown by provider: single id, mixed when several, null when none', () => {
+  const r = last([
+    rec(s('a', daysAgo(1), { agent: 'opencode', providers: ['zai-coding-plan'], costUsd: 3 })),
+    rec(s('b', daysAgo(1), { agent: 'opencode', providers: ['zai-coding-plan'], costUsd: 1 })),
+    rec(s('c', daysAgo(1), { agent: 'opencode', providers: ['minimax-coding-plan', 'opencode'], costUsd: 2 })),
+    rec(s('d', daysAgo(1), { costUsd: 5 })),
+  ], 7)
+  assert.deepEqual(r.breakdowns.provider.map(b => [b.key, b.sessions, b.costUsd]), [[null, 1, 5], ['zai-coding-plan', 2, 4], ['mixed', 1, 2]])
 })
 
 test('heatmapCost buckets message cost by weekday and hour of the message timestamp', () => {

@@ -1,11 +1,16 @@
-import type { AgentScope, Analysis, PeriodMetrics, ProjectOption, Scope, SessionDetail, SessionSummary, TraceEvent, Workflow } from '../shared/types.ts'
+import type { Agent, Analysis, PeriodMetrics, ProjectOption, Scope, SessionDetail, SessionSummary, TraceEvent, Workflow } from '../shared/types.ts'
+import { ALL_AGENTS } from '../shared/types.ts'
 
 export interface Query { from: Date; to: Date; scope: Scope }
 
+export function isAllAgents(agents: Agent[]): boolean {
+  return agents.length === ALL_AGENTS.length && ALL_AGENTS.every(a => agents.includes(a))
+}
+
 export function queryString(q: Query): string {
   const params = new URLSearchParams({ from: q.from.toISOString(), to: q.to.toISOString() })
-  if (q.scope.agent !== 'all') params.set('agent', q.scope.agent)
-  if (q.scope.source !== 'all') params.set('source', q.scope.source)
+  if (!isAllAgents(q.scope.agents)) params.set('agent', q.scope.agents.join(','))
+  if (q.scope.providers !== null) params.set('provider', [...q.scope.providers].sort().join(','))
   if (q.scope.project !== null) params.set('project', q.scope.project)
   return params.toString()
 }
@@ -32,10 +37,22 @@ export async function getWorkflow(q: Query): Promise<Workflow> {
   return (await request(`/api/workflow?${queryString(q)}`)).json()
 }
 
-export const projectsPath = (agent: AgentScope): string => (agent === 'all' ? '/api/projects' : `/api/projects?agent=${agent}`)
+export const providersPath = (agents: Agent[]): string => (isAllAgents(agents) ? '/api/providers' : `/api/providers?agent=${encodeURIComponent(agents.join(','))}`)
 
-export async function getProjects(agent: AgentScope): Promise<ProjectOption[]> {
-  return (await request(projectsPath(agent))).json()
+export async function getProviders(agents: Agent[]): Promise<string[]> {
+  return (await request(providersPath(agents))).json()
+}
+
+export const projectsPath = (agents: Agent[], providers: string[] | null): string => {
+  const params = new URLSearchParams()
+  if (!isAllAgents(agents)) params.set('agent', agents.join(','))
+  if (providers !== null) params.set('provider', providers.join(','))
+  const qs = params.toString()
+  return qs === '' ? '/api/projects' : `/api/projects?${qs}`
+}
+
+export async function getProjects(agents: Agent[], providers: string[] | null): Promise<ProjectOption[]> {
+  return (await request(projectsPath(agents, providers))).json()
 }
 
 export async function getDetail(id: string): Promise<SessionDetail> {

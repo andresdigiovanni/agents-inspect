@@ -17,6 +17,7 @@ export const BREAKDOWN_DIMS: { value: BreakdownDim; label: string }[] = [
   { value: 'version', label: 'Version' },
   { value: 'permissionMode', label: 'Permission mode' },
   { value: 'effort', label: 'Effort' },
+  { value: 'provider', label: 'Provider' },
 ]
 
 export const shortPath = (p: string): string => p.split('/').filter(Boolean).slice(-2).join('/') || p

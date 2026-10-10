@@ -5,12 +5,12 @@ import { priceOf } from './pricing.ts'
 const pct = (n: number, d: number): number | null => (d === 0 ? null : (n / d) * 100)
 
 export function computeModels(rs: SessionRecord[]): ModelAnalysis[] {
-  const byModel = new Map<string, { sessions: number; messages: number; tokens: TokenUsage; costUsd: number; sidechain: number; context: number; claude: boolean }>()
+  const byModel = new Map<string, { sessions: number; messages: number; tokens: TokenUsage; costUsd: number; sidechain: number; context: number; reported: boolean }>()
   for (const r of rs) {
     const seen = new Set<string>()
     for (const m of r.messages) {
-      const e = byModel.get(m.model) ?? { sessions: 0, messages: 0, tokens: { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, total: 0 }, costUsd: 0, sidechain: 0, context: 0, claude: false }
-      if (r.summary.agent === 'claude-code') e.claude = true
+      const e = byModel.get(m.model) ?? { sessions: 0, messages: 0, tokens: { input: 0, output: 0, cacheCreation: 0, cacheRead: 0, total: 0 }, costUsd: 0, sidechain: 0, context: 0, reported: false }
+      if (r.summary.agent === 'claude-code' || r.costReported === true) e.reported = true
       if (!seen.has(m.model)) { seen.add(m.model); e.sessions++ }
       e.messages++
       e.tokens.input += m.tokens.input
@@ -31,6 +31,6 @@ export function computeModels(rs: SessionRecord[]): ModelAnalysis[] {
     costPerMessage: e.messages ? e.costUsd / e.messages : null,
     avgContext: e.messages ? e.context / e.messages : null,
     outputPct: pct(e.tokens.output, e.tokens.input + e.tokens.cacheCreation + e.tokens.output),
-    priced: e.claude || priceOf(model) !== null,
+    priced: e.reported || priceOf(model) !== null,
   })).sort((a, b) => b.costUsd - a.costUsd || a.model.localeCompare(b.model))
 }

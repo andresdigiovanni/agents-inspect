@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { buildApp } from '../app.ts'
 import * as f from './fixtures.ts'
 import * as c from './copilotFixtures.ts'
+import * as oc from './opencodeFixtures.ts'
 
 const setup = async () => buildApp({ projectsDir: await f.makeProjectsDir({
   'p/recent.jsonl': f.jsonl([f.userText('r', { ts: '2026-10-06T00:00:00.000Z' })]),
@@ -90,21 +91,16 @@ test('GET /api/workflow filters by range and validates params', async () => {
   assert.equal((await app.inject('/api/workflow')).statusCode, 400)
 })
 
-test('scope: source and project filter every range endpoint; invalid source is 400; /api/projects lists all', async () => {
-  const meta = (o: object) => (l: object) => ({ ...l, ...o })
+test('scope: project filter on every range endpoint; /api/projects lists all', async () => {
   const app = buildApp({ projectsDir: await f.makeProjectsDir({
-    'p/cli.jsonl': f.jsonl([f.userText('a', { ts: '2026-10-06T00:00:00.000Z', cwd: '/x' })].map(meta({ entrypoint: 'cli' }))),
-    'p/sdk.jsonl': f.jsonl([f.userText('b', { ts: '2026-10-06T00:00:00.000Z', cwd: '/y' })].map(meta({ entrypoint: 'sdk-cli' }))),
-    'p/sdk2.jsonl': f.jsonl([f.userText('c', { ts: '2026-10-06T00:00:00.000Z', cwd: '/y' })].map(meta({ entrypoint: 'sdk-cli' }))),
+    'p/a.jsonl': f.jsonl([f.userText('a', { ts: '2026-10-06T00:00:00.000Z', cwd: '/x' })]),
+    'p/b.jsonl': f.jsonl([f.userText('b', { ts: '2026-10-06T00:00:00.000Z', cwd: '/y' })]),
+    'p/c.jsonl': f.jsonl([f.userText('c', { ts: '2026-10-06T00:00:00.000Z', cwd: '/y' })]),
   }) })
   const r = '?from=2026-10-01T00:00:00.000Z&to=2026-10-08T00:00:00.000Z'
   const ids = async (q: string) => (await app.inject(`/api/sessions${r}${q}`)).json().map((s: { id: string }) => s.id).sort()
-  assert.deepEqual(await ids(''), ['cli', 'sdk', 'sdk2'])
-  assert.deepEqual(await ids('&source=interactive'), ['cli'])
-  assert.deepEqual(await ids('&source=automated'), ['sdk', 'sdk2'])
-  assert.deepEqual(await ids('&project=%2Fx'), ['cli'])
-  assert.equal((await app.inject(`/api/summary${r}&source=automated`)).json().conversations, 2)
-  for (const path of ['summary', 'sessions', 'analysis', 'tooling', 'workflow']) assert.equal((await app.inject(`/api/${path}${r}&source=bogus`)).statusCode, 400, path)
+  assert.deepEqual(await ids(''), ['a', 'b', 'c'])
+  assert.deepEqual(await ids('&project=%2Fx'), ['a'])
   assert.equal((await app.inject(`/api/tooling${r}`)).statusCode, 200)
   assert.deepEqual((await app.inject('/api/projects')).json(), [{ project: '/y', sessions: 2 }, { project: '/x', sessions: 1 }])
   assert.equal((await app.inject(`/api/sessions${r}&agent=bogus`)).statusCode, 400)
@@ -134,4 +130,56 @@ test('Copilot sessions: agent scope, projects, trace, raw and detail', async () 
   assert.equal((await app.inject('/api/sessions/cp/trace')).json()[0].text, 'hello')
   assert.match((await app.inject('/api/sessions/cp/raw')).body, /"session\.start"/)
   assert.equal((await app.inject('/api/sessions/cp/detail')).json().summary.agent, 'copilot')
+})
+
+test('agent filter accepts a comma-separated list over HTTP', async () => {
+  const projectsDir = await f.makeProjectsDir({ 'p/cc.jsonl': f.jsonl([f.userText('hi', { ts: '2026-10-06T00:00:00.000Z' })]) })
+  const copilotDir = await f.makeProjectsDir({ 'cp/events.jsonl': f.jsonl([c.start({ id: 'cp', ts: '2026-10-06T00:00:00.000Z' }), c.user('hello', '2026-10-06T00:00:01.000Z')]) })
+  const app = buildApp({ projectsDir, copilotDir })
+  const r = '?from=2026-10-01T00:00:00.000Z&to=2026-10-08T00:00:00.000Z'
+  const ids = async (q: string) => (await app.inject(`/api/sessions${r}${q}`)).json().map((s: { id: string }) => s.id).sort()
+  assert.deepEqual(await ids('&agent=claude-code%2Ccopilot'), ['cc', 'cp'])
+  assert.deepEqual(await ids('&agent=copilot,copilot'), ['cp'])
+})
+
+test('agent filter and trace include opencode sessions', async () => {
+  const projectsDir = await f.makeProjectsDir({ 'p/s1.jsonl': f.jsonl([f.userText('hi', { ts: '2026-10-01T10:00:00.000Z' })]) })
+  const dbPath = await oc.makeDb(
+    [oc.sess({ id: 'ses_oc1', dir: '/z', title: 'T' })],
+    [oc.userMsg({ id: 'm1', session: 'ses_oc1', created: oc.ms(0) }), oc.assistantMsg({ id: 'm2', session: 'ses_oc1', completed: oc.ms(5) })],
+    [oc.textPart({ msg: 'm1', session: 'ses_oc1', text: 'hello' }), oc.textPart({ msg: 'm2', session: 'ses_oc1', text: 'hi back' })],
+  )
+  const app = buildApp({ projectsDir, opencodeDb: dbPath })
+  const ids = (q: string) => app.inject(`/api/sessions?from=2026-10-01T00:00:00.000Z&to=2026-10-02T00:00:00.000Z&${q}`)
+    .then(r => r.json().map((s: { id: string }) => s.id).sort())
+  assert.deepEqual(await ids('agent=opencode'), ['ses_oc1'])
+  assert.deepEqual(await ids('agent=claude-code'), ['s1'])
+  assert.equal((await app.inject('/api/sessions/ses_oc1/trace')).json().length, 2)
+  assert.equal((await app.inject('/api/sessions/ses_oc1/raw')).statusCode, 200)
+  assert.equal((await app.inject('/api/sessions/unknown/trace')).statusCode, 404)
+})
+
+test('provider filter: /api/providers lists distinct; provider narrows only opencode; unknown is 400; projects accepts provider', async () => {
+  const projectsDir = await f.makeProjectsDir({ 'p/cc.jsonl': f.jsonl([f.userText('hi', { ts: '2026-10-01T10:00:00.000Z', cwd: '/w' })]) })
+  const dbPath = await oc.makeDb(
+    [oc.sess({ id: 'ses_zai', dir: '/z', provider: 'zai-coding-plan', created: oc.ms(0) }),
+     oc.sess({ id: 'ses_mm', dir: '/z', provider: 'minimax-coding-plan', created: oc.ms(10) })],
+    [oc.userMsg({ id: 'm1', session: 'ses_zai' }), oc.assistantMsg({ id: 'm2', session: 'ses_zai', provider: 'zai-coding-plan', completed: oc.ms(5) }),
+     oc.userMsg({ id: 'm3', session: 'ses_mm' }), oc.assistantMsg({ id: 'm4', session: 'ses_mm', provider: 'minimax-coding-plan', created: oc.ms(11), completed: oc.ms(15) })],
+    [oc.textPart({ msg: 'm1', session: 'ses_zai', text: 'go' }), oc.textPart({ msg: 'm3', session: 'ses_mm', text: 'go' })],
+  )
+  const app = buildApp({ projectsDir, opencodeDb: dbPath })
+  const r = '?from=2026-10-01T00:00:00.000Z&to=2026-10-02T00:00:00.000Z'
+  const ids = async (q: string) => (await app.inject(`/api/sessions${r}${q}`)).json().map((s: { id: string }) => s.id).sort()
+  assert.deepEqual(await ids(''), ['cc', 'ses_mm', 'ses_zai'])
+  assert.deepEqual(await ids('&provider=zai-coding-plan'), ['cc', 'ses_zai'])
+  assert.deepEqual(await ids('&agent=opencode&provider=minimax-coding-plan'), ['ses_mm'])
+  assert.equal((await app.inject(`/api/sessions${r}&provider=bogus`)).statusCode, 400)
+  assert.equal((await app.inject(`/api/sessions${r}&provider=zai-coding-plan,bogus`)).statusCode, 400)
+  assert.equal((await app.inject(`/api/summary${r}&provider=bogus`)).statusCode, 400)
+  assert.deepEqual((await app.inject('/api/providers')).json(), ['minimax-coding-plan', 'zai-coding-plan'])
+  assert.deepEqual((await app.inject('/api/providers?agent=claude-code')).json(), [])
+  assert.equal((await app.inject('/api/providers?agent=bogus')).statusCode, 400)
+  assert.deepEqual((await app.inject('/api/projects?agent=opencode&provider=zai-coding-plan')).json(), [{ project: '/z', sessions: 1 }])
+  assert.equal((await app.inject(`/api/projects?provider=bogus`)).statusCode, 400)
 })

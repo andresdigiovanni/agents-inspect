@@ -197,7 +197,7 @@ export function parseRecord(parent: any[], subagents: any[][], fallback: { id: s
             t.total = t.input + t.output + t.cacheCreation + t.cacheRead
             msgIndex.set(m.id, messages.length)
             const mcpServer = typeof l.attributionMcpServer === 'string' && l.attributionMcpServer ? l.attributionMcpServer : null
-            messages.push({ ts, model, tokens: t, costUsd: 0, sidechain: !isParent, skill: attr, phase: 'other', phaseSource: 'none', agentId, mcpServer, context: t.input + t.cacheCreation + t.cacheRead })
+            messages.push({ ts, model, provider: null, tokens: t, costUsd: 0, sidechain: !isParent, skill: attr, phase: 'other', phaseSource: 'none', agentId, mcpServer, context: t.input + t.cacheCreation + t.cacheRead })
             signals.push({ skill: null, tool: null })
           }
         }
@@ -387,7 +387,7 @@ export function parseRecord(parent: any[], subagents: any[][], fallback: { id: s
   const apiMs = num(lastCost?.totalAPIDuration), apiNoRetry = num(lastCost?.totalAPIDurationWithoutRetries)
   const summary = {
     id: fallback.id, agent: 'claude-code' as const, project, title, startedAt,
-    models: [...models].sort(), userTurns, toolCalls,
+    models: [...models].sort(), providers: [], userTurns, toolCalls,
     toolRatio: userTurns ? toolCalls.total / userTurns : null,
     tokens, costUsd, skills: [...skills].sort(), mcpServers: [...mcpServers].sort(),
     skillsUsed: [...skillsUsed].sort(), mcpServersUsed: [...usedServers].sort(),
